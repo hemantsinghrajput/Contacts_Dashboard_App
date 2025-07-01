@@ -17,6 +17,7 @@ import { fetchContacts } from '../services/api';
 import { Contact } from '../types/contact';
 import ContactCard from '../components/ContactCard';
 import { RootStackParamList } from '../types/navigation';
+import { useTheme } from '../theme/ThemeContext'; // <-- Add this
 
 const { width } = Dimensions.get('window');
 
@@ -30,39 +31,36 @@ const ContactsListScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<NavigationProp>();
 
+  const { theme, colors, toggleTheme } = useTheme(); // <-- Theme hook
+
   const loadContacts = async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     else setRefreshing(true);
-    
+
     try {
       const data = await fetchContacts();
       setContacts(data);
       setFilteredContacts(data);
     } catch (error) {
       console.error('Failed to fetch contacts', error);
-      // You might want to show an error alert here
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  // Load contacts on initial mount
   useEffect(() => {
     loadContacts();
   }, []);
 
-  // Refresh contacts when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      // Only refresh if we already have data to avoid double loading
       if (contacts.length > 0) {
         loadContacts(true);
       }
     }, [contacts.length])
   );
 
-  // Filter contacts based on search query
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredContacts(contacts);
@@ -83,23 +81,27 @@ const ContactsListScreen: React.FC = () => {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      <Text style={styles.subtitle}>{filteredContacts.length} contacts</Text>
-      
-      <View style={styles.searchContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
+      {/* Theme toggle */}
+      <TouchableOpacity onPress={toggleTheme} style={styles.themeButton}>
+        <Text style={{ fontSize: 18 }}>{theme === 'light' ? '🌙' : '☀️'}</Text>
+      </TouchableOpacity>
+
+      <Text style={[styles.subtitle, { color: colors.subtext }]}>
+        {filteredContacts.length} contacts
+      </Text>
+
+      <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.subtext + '22' }]}>
+        <Text style={[styles.searchIcon, { color: colors.subtext }]}>🔍</Text>
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: colors.text }]}
           placeholder="Search contacts..."
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.subtext}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={() => setSearchQuery('')}
-          >
-            <Text style={styles.clearIcon}>✕</Text>
+          <TouchableOpacity style={styles.clearButton} onPress={() => setSearchQuery('')}>
+            <Text style={[styles.clearIcon, { color: colors.subtext }]}>✕</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -108,18 +110,18 @@ const ContactsListScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={styles.loaderContainer}>
-        <View style={styles.loaderCard}>
-          <ActivityIndicator size="large" color="#667eea" />
-          <Text style={styles.loaderText}>Loading contacts...</Text>
+      <View style={[styles.loaderContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.loaderCard, { backgroundColor: colors.card }]}>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={[styles.loaderText, { color: colors.subtext }]}>Loading contacts...</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.backgroundGradient} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.backgroundGradient, { backgroundColor: colors.accent, opacity: 0.05 }]} />
 
       <FlatList
         data={filteredContacts}
@@ -149,7 +151,6 @@ export default ContactsListScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -157,63 +158,47 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 200,
-    backgroundColor: '#667eea',
-    opacity: 0.05,
   },
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
   loaderCard: {
-    backgroundColor: '#ffffff',
     padding: 40,
     borderRadius: 20,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
     elevation: 4,
   },
   loaderText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6b7280',
     fontWeight: '500',
   },
   headerContainer: {
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 24,
+    position: 'relative',
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
     marginBottom: 24,
     fontWeight: '500',
+  },
+  themeButton: {
+    position: 'absolute',
+    right: 20,
+    top: 16,
+    zIndex: 10,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
   searchIcon: {
     fontSize: 16,
@@ -224,7 +209,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#374151',
   },
   clearButton: {
     padding: 8,
@@ -232,7 +216,6 @@ const styles = StyleSheet.create({
   },
   clearIcon: {
     fontSize: 14,
-    color: '#9ca3af',
     fontWeight: 'bold',
   },
   listContainer: {

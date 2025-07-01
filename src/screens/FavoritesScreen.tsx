@@ -10,14 +10,15 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as FileSystem from 'expo-file-system';
+
 import { Contact } from '../types/contact';
 import { getFavorites } from '../utils/storage';
-import * as FileSystem from 'expo-file-system';
 import ContactCard from '../components/ContactCard';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
+import { useTheme } from '../theme/ThemeContext'; // <-- theme hook
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ContactsList'>;
 
@@ -26,6 +27,7 @@ const FavoritesScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
+  const { theme, colors, toggleTheme } = useTheme(); // <-- useTheme
 
   const loadFavorites = async () => {
     setLoading(true);
@@ -39,7 +41,6 @@ const FavoritesScreen: React.FC = () => {
     }
   };
 
-  // Use useFocusEffect instead of useEffect to reload data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadFavorites();
@@ -67,22 +68,27 @@ const FavoritesScreen: React.FC = () => {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      <Text style={styles.title}>❤️ Favorites</Text>
-      <Text style={styles.subtitle}>
-        {favorites.length === 0 
-          ? 'No favorite contacts yet' 
-          : `${favorites.length} favorite contact${favorites.length === 1 ? '' : 's'}`
-        }
+      <Text style={[styles.title, { color: colors.text }]}>❤️ Favorites</Text>
+      <Text style={[styles.subtitle, { color: colors.subtext }]}>
+        {favorites.length === 0
+          ? 'No favorite contacts yet'
+          : `${favorites.length} favorite contact${favorites.length === 1 ? '' : 's'}`}
       </Text>
+
+      <TouchableOpacity onPress={toggleTheme} style={styles.themeToggle}>
+        <Text style={{ fontSize: 18 }}>
+          {theme === 'light' ? '🌙' : '☀️'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 
   const renderEmptyState = () => (
     <View style={styles.emptyStateContainer}>
-      <View style={styles.emptyStateCard}>
-        <Text style={styles.emptyStateIcon}>💫</Text>
-        <Text style={styles.emptyStateTitle}>No Favorites Yet</Text>
-        <Text style={styles.emptyStateText}>
+      <View style={[styles.emptyStateCard, { backgroundColor: colors.card }]}>
+        <Text style={[styles.emptyStateIcon, { color: colors.text }]}>💫</Text>
+        <Text style={[styles.emptyStateTitle, { color: colors.text }]}>No Favorites Yet</Text>
+        <Text style={[styles.emptyStateText, { color: colors.subtext }]}>
           Start adding contacts to your favorites by tapping the heart icon on any contact.
         </Text>
       </View>
@@ -91,11 +97,11 @@ const FavoritesScreen: React.FC = () => {
 
   const renderFooter = () => {
     if (favorites.length === 0) return null;
-    
+
     return (
       <View style={styles.footerContainer}>
-        <TouchableOpacity 
-          style={styles.exportButton} 
+        <TouchableOpacity
+          style={[styles.exportButton, { backgroundColor: colors.accent }]}
           onPress={exportFavorites}
           activeOpacity={0.8}
         >
@@ -107,9 +113,9 @@ const FavoritesScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.backgroundGradient} />
-      
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={[styles.backgroundGradient, { backgroundColor: colors.accent, opacity: 0.05 }]} />
+
       {favorites.length === 0 ? (
         <View style={styles.contentContainer}>
           {renderHeader()}
@@ -121,7 +127,7 @@ const FavoritesScreen: React.FC = () => {
           keyExtractor={(item) => item.login.uuid}
           ListHeaderComponent={renderHeader}
           ListFooterComponent={renderFooter}
-          renderItem={({ item, index }) => (
+          renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.contactWrapper}
               onPress={() => navigation.navigate('ContactDetail', { contact: item })}
@@ -144,7 +150,6 @@ export default FavoritesScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -152,8 +157,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 200,
-    backgroundColor: '#ec4899',
-    opacity: 0.05,
   },
   contentContainer: {
     flex: 1,
@@ -162,17 +165,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 24,
+    position: 'relative',
   },
   title: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#1a202c',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
     fontWeight: '500',
+  },
+  themeToggle: {
+    position: 'absolute',
+    right: 20,
+    top: 20,
   },
   listContainer: {
     paddingHorizontal: 20,
@@ -191,10 +198,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   emptyStateCard: {
-    backgroundColor: '#ffffff',
     borderRadius: 24,
     padding: 40,
     alignItems: 'center',
+    elevation: 8,
+    width: '100%',
+    maxWidth: 320,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -202,9 +211,6 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.1,
     shadowRadius: 24,
-    elevation: 8,
-    width: '100%',
-    maxWidth: 320,
   },
   emptyStateIcon: {
     fontSize: 64,
@@ -213,13 +219,11 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1a202c',
     marginBottom: 12,
     textAlign: 'center',
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#6b7280',
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -231,17 +235,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#667eea',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 16,
-    shadowColor: '#667eea',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
     elevation: 6,
   },
   exportIcon: {
